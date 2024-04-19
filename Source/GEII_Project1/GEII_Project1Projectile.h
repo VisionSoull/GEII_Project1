@@ -18,9 +18,12 @@ class AGEII_Project1Projectile : public AActor
 	UPROPERTY(VisibleDefaultsOnly, Category=Projectile)
 	USphereComponent* CollisionComp;
 
+
 	/** Projectile movement component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	UProjectileMovementComponent* ProjectileMovement;
+
+	
 
 public:
 	AGEII_Project1Projectile();
@@ -33,5 +36,10 @@ public:
 	USphereComponent* GetCollisionComp() const { return CollisionComp; }
 	/** Returns ProjectileMovement subobject **/
 	UProjectileMovementComponent* GetProjectileMovement() const { return ProjectileMovement; }
+
+	UPROPERTY(VisibleDefaultsOnly, Category = Projectile)
+	UStaticMeshComponent* MeshComponent;
+
+
 };
 

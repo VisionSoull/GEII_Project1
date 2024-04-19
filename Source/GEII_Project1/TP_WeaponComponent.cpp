@@ -14,11 +14,12 @@
 UTP_WeaponComponent::UTP_WeaponComponent()
 {
 	// Default offset from the character location for projectiles to spawn
-	MuzzleOffset = FVector(100.0f, 0.0f, 10.0f);
+	MuzzleOffset = FVector(2.0f, 2.0f, 2.0f);
 }
 
 
-void UTP_WeaponComponent::Fire()
+
+void UTP_WeaponComponent::Fire(TSubclassOf<class AGEII_Project1Projectile> Projectile)
 {
 	if (Character == nullptr || Character->GetController() == nullptr)
 	{
@@ -26,7 +27,7 @@ void UTP_WeaponComponent::Fire()
 	}
 
 	// Try and fire a projectile
-	if (ProjectileClass != nullptr)
+	if (Projectile != nullptr)
 	{
 		UWorld* const World = GetWorld();
 		if (World != nullptr)
@@ -39,9 +40,9 @@ void UTP_WeaponComponent::Fire()
 			//Set Spawn Collision Handling Override
 			FActorSpawnParameters ActorSpawnParams;
 			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-	
-			// Spawn the projectile at the muzzle
-			World->SpawnActor<AGEII_Project1Projectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			
+			// Spawn Projectile
+			World->SpawnActor<AGEII_Project1Projectile>(Projectile, SpawnLocation, SpawnRotation, ActorSpawnParams);
 		}
 	}
 	
@@ -61,6 +62,16 @@ void UTP_WeaponComponent::Fire()
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
 	}
+}
+
+void UTP_WeaponComponent::FireBlueProjectile()
+{
+	Fire(BlueProjectile);
+}
+
+void UTP_WeaponComponent::FireOrangeProjectile()
+{
+	Fire(OrangeProjectile);
 }
 
 void UTP_WeaponComponent::AttachWeapon(AGEII_Project1Character* TargetCharacter)
@@ -89,11 +100,16 @@ void UTP_WeaponComponent::AttachWeapon(AGEII_Project1Character* TargetCharacter)
 			Subsystem->AddMappingContext(FireMappingContext, 1);
 		}
 
+		
 		if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerController->InputComponent))
 		{
-			// Fire
-			EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, this, &UTP_WeaponComponent::Fire);
+			// Fire Left
+			EnhancedInputComponent->BindAction(LeftFireAction, ETriggerEvent::Triggered, this, &UTP_WeaponComponent::FireBlueProjectile);
+
+			// Fire Right
+			EnhancedInputComponent->BindAction(RightFireAction, ETriggerEvent::Triggered, this, &UTP_WeaponComponent::FireOrangeProjectile);
 		}
+		
 	}
 }
 

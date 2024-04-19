@@ -25,10 +25,19 @@ AGEII_Project1Projectile::AGEII_Project1Projectile()
 	ProjectileMovement->InitialSpeed = 3000.f;
 	ProjectileMovement->MaxSpeed = 3000.f;
 	ProjectileMovement->bRotationFollowsVelocity = true;
-	ProjectileMovement->bShouldBounce = true;
+	ProjectileMovement->bShouldBounce = false;
+	ProjectileMovement->ProjectileGravityScale = 0.f;
 
 	// Die after 3 seconds by default
 	InitialLifeSpan = 3.0f;
+
+	// Projectile
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
+	MeshComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+	MeshComponent->SetRelativeScale3D(FVector(0.1, 0.1, 0.1));
+
+	
+	
 }
 
 void AGEII_Project1Projectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)

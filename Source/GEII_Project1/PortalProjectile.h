@@ -15,3 +15,6 @@ class GEII_PROJECT1_API APortalProjectile : public AGEII_Project1Projectile
 	GENERATED_BODY()
 	
 };
+
+	// Logic specific to portal projectile //
+	
