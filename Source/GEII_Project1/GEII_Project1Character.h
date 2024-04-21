@@ -41,6 +41,8 @@ class AGEII_Project1Character : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
 	UInputAction* MoveAction;
 	
+	
+	
 public:
 	AGEII_Project1Character();
 
@@ -64,6 +66,9 @@ public:
 	/** Getter for the bool */
 	UFUNCTION(BlueprintCallable, Category = Weapon)
 	bool GetHasRifle();
+
+
+
 
 protected:
 	/** Called for movement input */

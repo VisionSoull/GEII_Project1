@@ -4,6 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/Actor.h"
+#include "Engine/World.h"
+#include "Engine/Engine.h"
+#include "DrawDebugHelpers.h"
 #include "TP_WeaponComponent.generated.h"
 
 
@@ -68,6 +72,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void FireOrangeProjectile();
 
+	/** Perform a LineTrace */
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void PerformLineTrace();
+
+	
+
+
 protected:
 	/** Ends gameplay for this component. */
 	UFUNCTION()
@@ -76,4 +87,6 @@ protected:
 private:
 	/** The Character holding this weapon*/
 	AGEII_Project1Character* Character;
+
+
 };

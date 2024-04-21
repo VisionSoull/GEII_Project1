@@ -9,6 +9,12 @@
 #include "Kismet/GameplayStatics.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "DrawDebugHelpers.h"
+#include "Engine/World.h"
+#include "Engine/EngineTypes.h"
+
+// Define custom trace channels
+#define ECC_PortalTraceChannel ECC_GameTraceChannel3
 
 // Sets default values for this component's properties
 UTP_WeaponComponent::UTP_WeaponComponent()
@@ -19,8 +25,12 @@ UTP_WeaponComponent::UTP_WeaponComponent()
 
 
 
+
 void UTP_WeaponComponent::Fire(TSubclassOf<class AGEII_Project1Projectile> Projectile)
 {
+	// Perform the line trace 
+	UTP_WeaponComponent::PerformLineTrace();
+
 	if (Character == nullptr || Character->GetController() == nullptr)
 	{
 		return;
@@ -32,6 +42,7 @@ void UTP_WeaponComponent::Fire(TSubclassOf<class AGEII_Project1Projectile> Proje
 		UWorld* const World = GetWorld();
 		if (World != nullptr)
 		{
+
 			APlayerController* PlayerController = Cast<APlayerController>(Character->GetController());
 			const FRotator SpawnRotation = PlayerController->PlayerCameraManager->GetCameraRotation();
 			// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
@@ -72,6 +83,53 @@ void UTP_WeaponComponent::FireBlueProjectile()
 void UTP_WeaponComponent::FireOrangeProjectile()
 {
 	Fire(OrangeProjectile);
+}
+
+void UTP_WeaponComponent::PerformLineTrace()
+{
+	if (Character == nullptr || Character->GetController() == nullptr)
+	{
+		return;
+	}
+
+	// Get player controller
+	APlayerController* PlayerController = Cast<APlayerController>(Character->GetController());
+	if (PlayerController == nullptr)
+	{
+		return;
+	}
+
+	// Get camera location and rotation
+	FVector CameraLocation;
+	FRotator CameraRotation;
+	PlayerController->GetPlayerViewPoint(CameraLocation, CameraRotation);
+
+	// Calculate end location for line trace
+	FVector EndLocation = CameraLocation + (CameraRotation.Vector() * 4000.0f);
+
+	// Perform line trace using custom trace channel 
+	FHitResult HitResult;
+	FCollisionQueryParams CollisionParams;
+	CollisionParams.AddIgnoredActor(Character);
+	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, CameraLocation, EndLocation, ECC_PortalTraceChannel, CollisionParams);
+
+	// Draw debug line to visualize the trace
+	if (bHit)
+	{
+		DrawDebugLine(GetWorld(), CameraLocation, HitResult.Location, FColor::Green, false, 1.0f, 0, 1.0f);
+	}
+	else
+	{
+		DrawDebugLine(GetWorld(), CameraLocation, EndLocation, FColor::Red, false, 1.0f, 0, 1.0f);
+	}
+
+	// Check if hit something
+	if (bHit)
+	{
+		// Detected an object using the custom trace channel
+		AActor* HitActor = HitResult.GetActor();
+		// Function to do When Hitting a suitable wall
+	}
 }
 
 void UTP_WeaponComponent::AttachWeapon(AGEII_Project1Character* TargetCharacter)
