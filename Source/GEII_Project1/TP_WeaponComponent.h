@@ -4,7 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/Actor.h"
+#include "Engine/World.h"
+#include "Engine/Engine.h"
+#include "DrawDebugHelpers.h"
 #include "TP_WeaponComponent.generated.h"
+
 
 class AGEII_Project1Character;
 
@@ -14,9 +19,13 @@ class GEII_PROJECT1_API UTP_WeaponComponent : public USkeletalMeshComponent
 	GENERATED_BODY()
 
 public:
-	/** Projectile class to spawn */
+	/** BlueProjectile To Spawn */
 	UPROPERTY(EditDefaultsOnly, Category=Projectile)
-	TSubclassOf<class AGEII_Project1Projectile> ProjectileClass;
+	TSubclassOf<class AGEII_Project1Projectile> BlueProjectile;
+
+	/** OrangeProjectile To spawn */
+	UPROPERTY(EditDefaultsOnly, Category=Projectile)
+	TSubclassOf<class AGEII_Project1Projectile> OrangeProjectile;
 
 	/** Sound to play each time we fire */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
@@ -34,9 +43,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
 	class UInputMappingContext* FireMappingContext;
 
-	/** Fire Input Action */
+	/** Left Click Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
-	class UInputAction* FireAction;
+	class UInputAction* LeftFireAction;
+
+	/** Right Click Input Action **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputAction* RightFireAction;
 
 	/** Sets default values for this component's properties */
 	UTP_WeaponComponent();
@@ -47,7 +60,20 @@ public:
 
 	/** Make the weapon Fire a Projectile */
 	UFUNCTION(BlueprintCallable, Category="Weapon")
-	void Fire();
+	void Fire(TSubclassOf<class AGEII_Project1Projectile> Projectile);
+
+	/** Make the weapon Fire Blue Projectile */
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void FireBlueProjectile();
+
+	/** Make the weapon Fire Orange Projectile */
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void FireOrangeProjectile();
+
+	/** Perform a LineTrace */
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	bool PerformLineTrace();
+
 
 protected:
 	/** Ends gameplay for this component. */
@@ -57,4 +83,6 @@ protected:
 private:
 	/** The Character holding this weapon*/
 	AGEII_Project1Character* Character;
+
+
 };
