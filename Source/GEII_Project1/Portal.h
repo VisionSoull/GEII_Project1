@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Camera/CameraComponent.h"
-#include "Components/SceneCaptureComponent2D.h"
+#include "GEII_Project1Character.h"
+#include "Components/BoxComponent.h"
 #include "Portal.generated.h"
 
 UCLASS()
@@ -19,7 +19,7 @@ public:
 
 private:
 	// Default scene root
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* DefaultSceneRoot;
 
 	// Static mesh component for the portal
@@ -34,6 +34,9 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* BackFacingScene;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
+	UBoxComponent* CollisionComponent;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -45,6 +48,10 @@ protected:
 	// Variable for linked portal
 	UPROPERTY(EditAnywhere, BlueprintReadONly, Category="Portal")
 	APortal* LinkedPortal;
+
+	// Variable to set the portal color
+	UPROPERTY(EditAnywhere, BlueprintReadONly, Category="Portal")
+	FLinearColor PortalColor;
 
 	// Variable for referencing the Portal Mesh Material
 	UPROPERTY(BlueprintReadOnly, Category = "Portal")
@@ -61,11 +68,25 @@ public:
 	// Function to give a reference of the Portal Camera to the Linked Portal requesting it
 	USceneCaptureComponent2D* GetSceneCapture() const;
 
+	// Function to receive reference of a portal to link
+	void GetPortalToLink(APortal* PortalToLink);
+
 protected:
 	// Function to update the Linked Portal's Camera
 	void UpdateSceneCapture();
 
+	// Begin Overlap
+    UFUNCTION()
+	void BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	// End Overlap
+	UFUNCTION()
+	void EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
 	USceneCaptureComponent2D* LinkedPortalCamera;
+
+private:
+	AGEII_Project1Character* PlayerInPortal;
 
 protected:
 	// Variable to hold the tick group
