@@ -178,16 +178,17 @@ void APortal::BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 
 void APortal::EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Finished Overlap"));
 	AGEII_Project1Character* Character = Cast<AGEII_Project1Character>(OtherActor);
 	if (Character)
 	{
-		if (!PlayerInPortal)
+		if (PlayerInPortal)
 		{
 			UCapsuleComponent* CapsuleComponent = PlayerInPortal->GetCapsuleComponent();
 			CapsuleComponent->SetCollisionProfileName(TEXT("Pawn"));
 			CapsuleComponent->UpdateCollisionProfile();
+			UE_LOG(LogTemp, Warning, TEXT("Changed Collision"));
 		}
 		PlayerInPortal = nullptr;
+		UE_LOG(LogTemp, Warning, TEXT("Finished Overlap"));
 	}
 }
