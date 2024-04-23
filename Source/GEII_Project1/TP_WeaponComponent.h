@@ -80,6 +80,8 @@ protected:
 	UFUNCTION()
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+
 private:
 	/** The Character holding this weapon*/
 	AGEII_Project1Character* Character;

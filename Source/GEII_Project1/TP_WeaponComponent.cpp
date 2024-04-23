@@ -14,13 +14,17 @@
 #include "Engine/EngineTypes.h"
 
 // Define custom trace channels
-#define ECC_PortalTraceChannel ECC_GameTraceChannel3
+#define ECC_PortalTraceChannel ECC_GameTraceChannel2
 
 // Sets default values for this component's properties
 UTP_WeaponComponent::UTP_WeaponComponent()
 {
 	// Default offset from the character location for projectiles to spawn
 	MuzzleOffset = FVector(2.0f, 2.0f, 2.0f);
+
+	ObjectTypes.Empty();
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PortalTraceChannel));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 }
 
 
@@ -115,18 +119,30 @@ bool UTP_WeaponComponent::PerformLineTrace()
 	FHitResult HitResult;
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.AddIgnoredActor(Character);
-	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, CameraLocation, EndLocation, ECC_PortalTraceChannel, CollisionParams);
-
+		bool bHit = GetWorld()->LineTraceSingleByObjectType(HitResult, CameraLocation, EndLocation, FCollisionObjectQueryParams(ObjectTypes), CollisionParams);
+		
 	// Check if hit something
 	if (bHit)
 	{
-		DrawDebugLine(GetWorld(), CameraLocation, HitResult.Location, FColor::Green, false, 1.0f, 0, 1.0f);
-		// Detected an object using the custom trace channel
-		AActor* HitActor = HitResult.GetActor();
-		return true;
+
+		if (HitResult.GetActor() && HitResult.GetActor()->GetRootComponent()->GetCollisionObjectType() == ECC_GameTraceChannel2)
+		{
+			// It's a Portal Wall
+			DrawDebugLine(GetWorld(), CameraLocation, HitResult.Location, FColor::Green, false, 1.0f, 0, 1.0f);
+			return true;
+		}
+
+		else 
+		{
+			// It's Not a Portal Wall
+			DrawDebugLine(GetWorld(), CameraLocation, EndLocation, FColor::Red, false, 1.0f, 0, 1.0f);
+			return false;
+		}
+	
 	}
 	else
 	{
+		// Didn't Hit Anything at All
 		DrawDebugLine(GetWorld(), CameraLocation, EndLocation, FColor::Red, false, 1.0f, 0, 1.0f);
 		return false;
 	}
