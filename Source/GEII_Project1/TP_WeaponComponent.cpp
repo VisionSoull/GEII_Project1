@@ -12,6 +12,7 @@
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "Engine/EngineTypes.h"
+#include "Portal.h"
 
 // Define custom trace channels
 #define ECC_PortalTraceChannel ECC_GameTraceChannel2
@@ -160,7 +161,6 @@ void UTP_WeaponComponent::AttachWeapon(AGEII_Project1Character* TargetCharacter)
 			Subsystem->AddMappingContext(FireMappingContext, 1);
 		}
 
-		
 		if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerController->InputComponent))
 		{
 			// Fire Left
@@ -169,7 +169,6 @@ void UTP_WeaponComponent::AttachWeapon(AGEII_Project1Character* TargetCharacter)
 			// Fire Right
 			EnhancedInputComponent->BindAction(RightFireAction, ETriggerEvent::Triggered, this, &UTP_WeaponComponent::FireOrangeProjectile);
 		}
-		
 	}
 }
 
@@ -179,7 +178,6 @@ void UTP_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		return;
 	}
-
 	if (APlayerController* PlayerController = Cast<APlayerController>(Character->GetController()))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))

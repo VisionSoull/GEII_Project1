@@ -8,6 +8,8 @@
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
+#include "Portal.h"
+#include "GEII_Project1Projectile.h"
 #include "TP_WeaponComponent.generated.h"
 
 
@@ -92,5 +94,13 @@ private:
 	/** The Character holding this weapon*/
 	AGEII_Project1Character* Character;
 
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Portal", meta =(AllowPrivateAccess = "true"))
+	APortal* BluePortal;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Portal", meta =(AllowPrivateAccess = "true"))
+	APortal* OrangePortal;
 
+	APortal* SpawnedBluePortal;
+	 
+	APortal* SpawnedOrangePortal;
 };

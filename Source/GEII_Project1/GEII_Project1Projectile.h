@@ -23,7 +23,9 @@ class AGEII_Project1Projectile : public AActor
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	UProjectileMovementComponent* ProjectileMovement;
 
-	
+private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+	float Speed = 10000.f;
 
 public:
 	AGEII_Project1Projectile();
@@ -39,7 +41,6 @@ public:
 
 	UPROPERTY(VisibleDefaultsOnly, Category = Projectile)
 	UStaticMeshComponent* MeshComponent;
-
 
 };
 

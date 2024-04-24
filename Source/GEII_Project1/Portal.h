@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "GEII_Project1Character.h"
 #include "Components/BoxComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Portal.generated.h"
 
 UCLASS()
