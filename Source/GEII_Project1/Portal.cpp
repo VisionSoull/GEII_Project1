@@ -13,6 +13,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/CapsuleComponent.h"
 #include "GEII_Project1Character.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/PawnMovementComponent.h"
 
 // Sets default values
 APortal::APortal()
@@ -119,6 +121,10 @@ void APortal::Tick(float DeltaTime)
 	if (LinkedPortal)
 	{
 		UpdateSceneCapture();
+		if (PlayerInPortal)
+		{
+			CheckPlayerCanTeleport(PlayerInPortal);
+		}
 	}
 
 }
@@ -162,16 +168,18 @@ void APortal::UpdateSceneCapture()
 
 void APortal::BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Detected Overlap"));
 	AGEII_Project1Character* Character = Cast<AGEII_Project1Character>(OtherActor);
-	if (Character)
+	if (LinkedPortal)
 	{
-		PlayerInPortal = Character;
-
-		if (UCapsuleComponent* CapsuleComponent = PlayerInPortal->GetCapsuleComponent())
+		if (Character)
 		{
-			CapsuleComponent->SetCollisionProfileName(TEXT("PortalPawn"));
-			CapsuleComponent->UpdateCollisionProfile();
+			PlayerInPortal = Character;
+
+			if (UCapsuleComponent* CapsuleComponent = PlayerInPortal->GetCapsuleComponent())
+			{
+				CapsuleComponent->SetCollisionProfileName(TEXT("PortalPawn"));
+				CapsuleComponent->UpdateCollisionProfile();
+			}
 		}
 	}
 }
@@ -186,9 +194,79 @@ void APortal::EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Other
 			UCapsuleComponent* CapsuleComponent = PlayerInPortal->GetCapsuleComponent();
 			CapsuleComponent->SetCollisionProfileName(TEXT("Pawn"));
 			CapsuleComponent->UpdateCollisionProfile();
-			UE_LOG(LogTemp, Warning, TEXT("Changed Collision"));
 		}
 		PlayerInPortal = nullptr;
-		UE_LOG(LogTemp, Warning, TEXT("Finished Overlap"));
 	}
+}
+
+void APortal::CheckPlayerCanTeleport(AGEII_Project1Character* Player)
+{
+	// Get the player's current location
+	FVector PlayerLocation = Player->GetActorLocation();
+
+	// get the player's current velocity
+	FVector PlayerVelocity = Player->GetVelocity();
+
+	// Get the world's delta seconds
+	float DeltaTime = GetWorld()->GetDeltaSeconds();
+
+	// Determine the future position of the player
+	FVector FuturePlayerLocation = PlayerLocation + (PlayerVelocity * DeltaTime);
+
+	// Determine the direction from the portal to the player's future location
+	FVector DirectionToFuturePlayer = (FuturePlayerLocation - this->GetActorLocation());
+
+	DirectionToFuturePlayer = DirectionToFuturePlayer.GetSafeNormal();
+
+	float DotProductForPlayerBehindPortal = FVector::DotProduct(DirectionToFuturePlayer, this->GetActorForwardVector());
+
+	float DotProductForPlayerGoingAgainstPortal = FVector::DotProduct(Player->GetLastMovementInputVector().GetSafeNormal(), this->GetActorForwardVector());
+
+	// Check if player is behind the portal and going against the portal
+	if (DotProductForPlayerBehindPortal <= 0.f && DotProductForPlayerGoingAgainstPortal < 0.f)
+	{
+		TeleportPlayer(Player);
+	}
+}
+
+void APortal::TeleportPlayer(AGEII_Project1Character* Player)
+{
+	// Get the current transform of the player
+	FTransform PlayerTransform = Player->GetActorTransform();
+
+	// Get the player's current velocity
+	FVector PlayerVelocity = Player->GetVelocity();
+
+	// Convert the player's velocity from world to relative
+	FVector RelativeVelocity = UKismetMathLibrary::InverseTransformDirection(PlayerTransform, PlayerVelocity);
+
+	// Get the transform of the back facing scene component
+	FTransform BackFacingSceneTransform = BackFacingScene->GetComponentTransform();
+
+	// get the transform of the player's camera component
+	FTransform PlayerCameraTransform = Player->GetFirstPersonCameraComponent()->GetComponentTransform();
+
+	// Calculate the relative transform of the player's camera in consideration to the back facing scene component
+	FTransform ConvertedTransform = UKismetMathLibrary::MakeRelativeTransform(PlayerCameraTransform, BackFacingSceneTransform);
+
+	// Calculate the player's relative transform with the linked portal's world transform
+	FTransform ComposedTransform = UKismetMathLibrary::ComposeTransforms(ConvertedTransform, LinkedPortal->GetActorTransform());
+
+	// Calculate the new location for the player, offset slightly in front of the linked portal by its forward vector for a more smooth transition
+	FVector NewLocation = (LinkedPortal->GetActorForwardVector() * 10) + (ComposedTransform.GetLocation() - Player->GetFirstPersonCameraComponent()->GetRelativeLocation());
+
+	// Calculate the new rotation for the player, ensuring that the roll is set to 0 to avoid unwanted tilting
+	FRotator NewRotation = FRotator(ComposedTransform.Rotator().Pitch, ComposedTransform.Rotator().Yaw, 0.f);
+
+	// Set the player's new location
+	Player->SetActorLocation(NewLocation);
+
+	// Update the player controller's rotation to match 
+	Player->GetController()->SetControlRotation(NewRotation);
+	
+	// Create a transform with the updated location and control rotation.
+	FTransform NewTransform = UKismetMathLibrary::MakeTransform(Player->GetActorLocation(), Player->GetController()->GetControlRotation());
+
+	// Update the player's velocity with the new transform
+	Player->GetMovementComponent()->Velocity = UKismetMathLibrary::TransformDirection(NewTransform, RelativeVelocity);
 }
