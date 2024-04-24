@@ -13,7 +13,19 @@ class AGEII_Project1GameMode : public AGameModeBase
 
 public:
 	AGEII_Project1GameMode();
+
+	void BeginPlay();
+
+
+protected:
+
+	/** The Widget class to use for our HUD screen */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Power", Meta = (BlueprintProtected = true))
+	TSubclassOf<class UUserWidget> HUDWidgetClass;
+
+	/** The instance of the HUD */
+	UPROPERTY()
+	class UUserWidget* CurrentWidget;
+
+
 };
-
-
-

@@ -28,8 +28,6 @@ UTP_WeaponComponent::UTP_WeaponComponent()
 }
 
 
-
-
 void UTP_WeaponComponent::Fire(TSubclassOf<class AGEII_Project1Projectile> Projectile)
 {
 	// Perform the line trace 
