@@ -231,29 +231,42 @@ void APortal::CheckPlayerCanTeleport(AGEII_Project1Character* Player)
 
 void APortal::TeleportPlayer(AGEII_Project1Character* Player)
 {
+	// Get the current transform of the player
 	FTransform PlayerTransform = Player->GetActorTransform();
 
+	// Get the player's current velocity
 	FVector PlayerVelocity = Player->GetVelocity();
 
+	// Convert the player's velocity from world to relative
 	FVector RelativeVelocity = UKismetMathLibrary::InverseTransformDirection(PlayerTransform, PlayerVelocity);
 
+	// Get the transform of the back facing scene component
 	FTransform BackFacingSceneTransform = BackFacingScene->GetComponentTransform();
 
+	// get the transform of the player's camera component
 	FTransform PlayerCameraTransform = Player->GetFirstPersonCameraComponent()->GetComponentTransform();
 
+	// Calculate the relative transform of the player's camera in consideration to the back facing scene component
 	FTransform ConvertedTransform = UKismetMathLibrary::MakeRelativeTransform(PlayerCameraTransform, BackFacingSceneTransform);
 
+	// Calculate the player's relative transform with the linked portal's world transform
 	FTransform ComposedTransform = UKismetMathLibrary::ComposeTransforms(ConvertedTransform, LinkedPortal->GetActorTransform());
 
+	// Calculate the new location for the player, offset slightly in front of the linked portal by its forward vector for a more smooth transition
 	FVector NewLocation = (LinkedPortal->GetActorForwardVector() * 10) + (ComposedTransform.GetLocation() - Player->GetFirstPersonCameraComponent()->GetRelativeLocation());
 
+	// Calculate the new rotation for the player, ensuring that the roll is set to 0 to avoid unwanted tilting
 	FRotator NewRotation = FRotator(ComposedTransform.Rotator().Pitch, ComposedTransform.Rotator().Yaw, 0.f);
 
+	// Set the player's new location
 	Player->SetActorLocation(NewLocation);
 
+	// Update the player controller's rotation to match 
 	Player->GetController()->SetControlRotation(NewRotation);
 	
+	// Create a transform with the updated location and control rotation.
 	FTransform NewTransform = UKismetMathLibrary::MakeTransform(Player->GetActorLocation(), Player->GetController()->GetControlRotation());
 
+	// Update the player's velocity with the new transform
 	Player->GetMovementComponent()->Velocity = UKismetMathLibrary::TransformDirection(NewTransform, RelativeVelocity);
 }
