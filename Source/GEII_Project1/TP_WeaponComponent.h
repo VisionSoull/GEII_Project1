@@ -54,6 +54,8 @@ public:
 	/** Sets default values for this component's properties */
 	UTP_WeaponComponent();
 
+	void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction);
+
 	/** Attaches the actor to a FirstPersonCharacter */
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void AttachWeapon(AGEII_Project1Character* TargetCharacter);
@@ -73,6 +75,10 @@ public:
 	/** Perform a LineTrace */
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	bool PerformLineTrace();
+
+	/** Returns the Object that is currently being hit **/
+	UPROPERTY(BlueprintReadWrite, Category = "Weapon")
+	bool bLastTraceHitPortalWall;
 
 
 protected:

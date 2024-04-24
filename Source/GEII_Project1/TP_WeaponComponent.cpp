@@ -25,58 +25,67 @@ UTP_WeaponComponent::UTP_WeaponComponent()
 	ObjectTypes.Empty();
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PortalTraceChannel));
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
+
+	bLastTraceHitPortalWall = false;
+
+}
+
+void UTP_WeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	// Perform line trace on tick
+	PerformLineTrace();
 }
 
 
 void UTP_WeaponComponent::Fire(TSubclassOf<class AGEII_Project1Projectile> Projectile)
 {
-	// Perform the line trace 
-	bool SuitableWall = UTP_WeaponComponent::PerformLineTrace();
-
-	if (SuitableWall)
+	if (Character == nullptr || Character->GetController() == nullptr)
 	{
+		return;
+	}
 
-		if (Character == nullptr || Character->GetController() == nullptr)
+	// Check if the last trace hit a portal wall
+	if (!bLastTraceHitPortalWall)
+	{
+		return; // Don't fire if the last trace didn't hit a portal wall
+	}
+
+	// Try and fire a projectile
+	if (Projectile != nullptr)
+	{
+		UWorld* const World = GetWorld();
+		if (World != nullptr)
 		{
-			return;
+			APlayerController* PlayerController = Cast<APlayerController>(Character->GetController());
+			const FRotator SpawnRotation = PlayerController->PlayerCameraManager->GetCameraRotation();
+			// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
+			const FVector SpawnLocation = GetOwner()->GetActorLocation() + SpawnRotation.RotateVector(MuzzleOffset);
+
+			//Set Spawn Collision Handling Override
+			FActorSpawnParameters ActorSpawnParams;
+			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+
+			// Spawn Projectile
+			World->SpawnActor<AGEII_Project1Projectile>(Projectile, SpawnLocation, SpawnRotation, ActorSpawnParams);
 		}
+	}
 
-		// Try and fire a projectile
-		if (Projectile != nullptr)
+	// Try and play the sound if specified
+	if (FireSound != nullptr)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, FireSound, Character->GetActorLocation());
+	}
+
+	// Try and play a firing animation if specified
+	if (FireAnimation != nullptr)
+	{
+		// Get the animation object for the arms mesh
+		UAnimInstance* AnimInstance = Character->GetMesh1P()->GetAnimInstance();
+		if (AnimInstance != nullptr)
 		{
-			UWorld* const World = GetWorld();
-			if (World != nullptr)
-			{
-
-				APlayerController* PlayerController = Cast<APlayerController>(Character->GetController());
-				const FRotator SpawnRotation = PlayerController->PlayerCameraManager->GetCameraRotation();
-				// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
-				const FVector SpawnLocation = GetOwner()->GetActorLocation() + SpawnRotation.RotateVector(MuzzleOffset);
-
-				//Set Spawn Collision Handling Override
-				FActorSpawnParameters ActorSpawnParams;
-				ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-
-				// Spawn Projectile
-				World->SpawnActor<AGEII_Project1Projectile>(Projectile, SpawnLocation, SpawnRotation, ActorSpawnParams);
-			}
-		}
-
-		// Try and play the sound if specified
-		if (FireSound != nullptr)
-		{
-			UGameplayStatics::PlaySoundAtLocation(this, FireSound, Character->GetActorLocation());
-		}
-
-		// Try and play a firing animation if specified
-		if (FireAnimation != nullptr)
-		{
-			// Get the animation object for the arms mesh
-			UAnimInstance* AnimInstance = Character->GetMesh1P()->GetAnimInstance();
-			if (AnimInstance != nullptr)
-			{
-				AnimInstance->Montage_Play(FireAnimation, 1.f);
-			}
+			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
 	}
 }
@@ -117,33 +126,12 @@ bool UTP_WeaponComponent::PerformLineTrace()
 	FHitResult HitResult;
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.AddIgnoredActor(Character);
-		bool bHit = GetWorld()->LineTraceSingleByObjectType(HitResult, CameraLocation, EndLocation, FCollisionObjectQueryParams(ObjectTypes), CollisionParams);
-		
-	// Check if hit something
-	if (bHit)
-	{
+	bool bHit = GetWorld()->LineTraceSingleByObjectType(HitResult, CameraLocation, EndLocation, FCollisionObjectQueryParams(ObjectTypes), CollisionParams);
 
-		if (HitResult.GetActor() && HitResult.GetActor()->GetRootComponent()->GetCollisionObjectType() == ECC_GameTraceChannel2)
-		{
-			// It's a Portal Wall
-			DrawDebugLine(GetWorld(), CameraLocation, HitResult.Location, FColor::Green, false, 1.0f, 0, 1.0f);
-			return true;
-		}
+	// Update the member variable based on the result
+	bLastTraceHitPortalWall = bHit && HitResult.GetActor() && HitResult.GetActor()->GetRootComponent()->GetCollisionObjectType() == ECC_GameTraceChannel2;
 
-		else 
-		{
-			// It's Not a Portal Wall
-			DrawDebugLine(GetWorld(), CameraLocation, EndLocation, FColor::Red, false, 1.0f, 0, 1.0f);
-			return false;
-		}
-	
-	}
-	else
-	{
-		// Didn't Hit Anything at All
-		DrawDebugLine(GetWorld(), CameraLocation, EndLocation, FColor::Red, false, 1.0f, 0, 1.0f);
-		return false;
-	}
+	return bLastTraceHitPortalWall;
 }
 
 void UTP_WeaponComponent::AttachWeapon(AGEII_Project1Character* TargetCharacter)
