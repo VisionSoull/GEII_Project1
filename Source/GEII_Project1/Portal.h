@@ -34,6 +34,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* BackFacingScene;
 
+	// Collision to detect player to pass through the portal
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
 	UBoxComponent* CollisionComponent;
 
@@ -71,7 +72,7 @@ public:
 	// Function to receive reference of a portal to link
 	void GetPortalToLink(APortal* PortalToLink);
 
-protected:
+private:
 	// Function to update the Linked Portal's Camera
 	void UpdateSceneCapture();
 
@@ -82,6 +83,12 @@ protected:
 	// End Overlap
 	UFUNCTION()
 	void EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UFUNCTION()
+	void CheckPlayerCanTeleport(AGEII_Project1Character* Player);
+
+	UFUNCTION()
+	void TeleportPlayer(AGEII_Project1Character* Player);
 
 	USceneCaptureComponent2D* LinkedPortalCamera;
 
