@@ -234,7 +234,7 @@ void UTP_WeaponComponent::SpawnPortal(TSubclassOf<class APortal> PortalToSpawn, 
 
 void UTP_WeaponComponent::ChangePortalLocation(APortal* PortalToChangeLocation, FVector NewLocation, FRotator NewRotation)
 {
-	PortalToChangeLocation->SetActorLocationAndRotation(NewLocation, NewRotation);
+	PortalToChangeLocation->PlacePortal(NewLocation, NewRotation);
 }
 
 void UTP_WeaponComponent::SpawnBluePortal()

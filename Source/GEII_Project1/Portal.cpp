@@ -113,21 +113,12 @@ void APortal::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (LinkedPortal)
+	if (LinkedPortal && LinkedPortal->IsValidLowLevel())
 	{
-		UE_LOG(LogTemp, Log, TEXT("LinkedPortal is set"));
-		if (LinkedPortal && LinkedPortal->IsValidLowLevel())
+		UpdateSceneCapture();
+		if (PlayerInPortal)
 		{
-			UE_LOG(LogTemp, Log, TEXT("LinkedPortal of the linked portal is set"));
-			UpdateSceneCapture();
-			if (PlayerInPortal)
-			{
-				CheckPlayerCanTeleport(PlayerInPortal);
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Log, TEXT("LinkedPortal is null"))
+			CheckPlayerCanTeleport(PlayerInPortal);
 		}
 	}
 }
@@ -147,7 +138,7 @@ void APortal::SetPortalToLink(APortal* PortalToLink)
 
 void APortal::PlacePortal(FVector NewLocation, FRotator NewRotation)
 {
-	this->SetActorLocationAndRotation(NewLocation, NewRotation);
+	SetActorLocationAndRotation(NewLocation, NewRotation);
 }
 
 APortal* APortal::GetLinkedPortal()
@@ -165,7 +156,6 @@ void APortal::EnableTickingAfterDelay()
 
 void APortal::EnableTicking()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Portal Tick Enabled, I suppose"));
 	GetWorldTimerManager().SetTimer(TimerHandle, this, &APortal::EnableTickingAfterDelay, 0.2f, false);
 }
 
@@ -261,9 +251,9 @@ void APortal::CheckPlayerCanTeleport(AGEII_Project1Character* Player)
 
 	DirectionToFuturePlayer = DirectionToFuturePlayer.GetSafeNormal();
 
-	float DotProductForPlayerBehindPortal = FVector::DotProduct(DirectionToFuturePlayer, this->GetActorForwardVector());
+	float DotProductForPlayerBehindPortal = FVector::DotProduct(DirectionToFuturePlayer, GetActorForwardVector());
 
-	float DotProductForPlayerGoingAgainstPortal = FVector::DotProduct(Player->GetLastMovementInputVector().GetSafeNormal(), this->GetActorForwardVector());
+	float DotProductForPlayerGoingAgainstPortal = FVector::DotProduct(Player->GetLastMovementInputVector().GetSafeNormal(), GetActorForwardVector());
 
 	// Check if player is behind the portal and going against the portal
 	if (DotProductForPlayerBehindPortal <= 0.f && DotProductForPlayerGoingAgainstPortal < 0.f)
@@ -311,5 +301,5 @@ void APortal::TeleportPlayer(AGEII_Project1Character* Player)
 	FTransform NewTransform = UKismetMathLibrary::MakeTransform(Player->GetActorLocation(), Player->GetController()->GetControlRotation());
 
 	// Update the player's velocity with the new transform
-	Player->GetMovementComponent()->Velocity = UKismetMathLibrary::TransformDirection(NewTransform, RelativeVelocity * 2);
+	Player->GetMovementComponent()->Velocity = UKismetMathLibrary::TransformDirection(NewTransform, RelativeVelocity);
 }
