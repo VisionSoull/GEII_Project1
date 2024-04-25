@@ -15,6 +15,7 @@
 #include "GEII_Project1Character.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
+#include "TimerManager.h"
 
 // Sets default values
 APortal::APortal()
@@ -63,6 +64,11 @@ void APortal::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Set the tick group
+	SetTickGroup(TickGroup);
+
+	SetActorTickEnabled(false);
+
 	// Get the size of the portal mesh
 	FBoxSphereBounds Bounds = PortalMesh->GetStaticMesh()->GetBounds();
 	FVector BoxExtent = Bounds.BoxExtent;
@@ -99,6 +105,72 @@ void APortal::BeginPlay()
 		Portal_MAT->SetTextureParameterValue("Texture", Portal_RT);
 	}
 
+	SetupLinkedPortal();
+}
+
+// Called every frame
+void APortal::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (LinkedPortal)
+	{
+		UE_LOG(LogTemp, Log, TEXT("LinkedPortal is set"));
+		if (LinkedPortal && LinkedPortal->IsValidLowLevel())
+		{
+			UE_LOG(LogTemp, Log, TEXT("LinkedPortal of the linked portal is set"));
+			UpdateSceneCapture();
+			if (PlayerInPortal)
+			{
+				CheckPlayerCanTeleport(PlayerInPortal);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("LinkedPortal is null"))
+		}
+	}
+}
+
+USceneCaptureComponent2D* APortal::GetSceneCapture() const
+{
+	return PortalCamera;
+}
+
+void APortal::SetPortalToLink(APortal* PortalToLink)
+{
+	if (PortalToLink && PortalToLink->IsValidLowLevel())
+	{
+		LinkedPortal = PortalToLink;
+	}
+}
+
+void APortal::PlacePortal(FVector NewLocation, FRotator NewRotation)
+{
+	this->SetActorLocationAndRotation(NewLocation, NewRotation);
+}
+
+APortal* APortal::GetLinkedPortal()
+{
+	return LinkedPortal;
+}
+
+void APortal::EnableTickingAfterDelay()
+{
+	if (LinkedPortal && LinkedPortal->IsValidLowLevel())
+	{
+		SetActorTickEnabled(true);
+	}
+}
+
+void APortal::EnableTicking()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Portal Tick Enabled, I suppose"));
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &APortal::EnableTickingAfterDelay, 0.2f, false);
+}
+
+void APortal::SetupLinkedPortal()
+{
 	if (LinkedPortal)
 	{
 		LinkedPortalCamera = LinkedPortal->GetSceneCapture();
@@ -108,35 +180,6 @@ void APortal::BeginPlay()
 			LinkedPortalCamera->TextureTarget = Portal_RT;
 		}
 	}
-}
-
-// Called every frame
-void APortal::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	// Set the tick group
-	SetTickGroup(TickGroup);
-
-	if (LinkedPortal)
-	{
-		UpdateSceneCapture();
-		if (PlayerInPortal)
-		{
-			CheckPlayerCanTeleport(PlayerInPortal);
-		}
-	}
-
-}
-
-USceneCaptureComponent2D* APortal::GetSceneCapture() const
-{
-	return PortalCamera;
-}
-
-void APortal::GetPortalToLink(APortal* PortalToLink)
-{
-	LinkedPortal = PortalToLink;
 }
 
 void APortal::UpdateSceneCapture()
@@ -156,7 +199,7 @@ void APortal::UpdateSceneCapture()
 	// Set the relative transform to the linked portal's camera
 	LinkedPortalCamera->SetRelativeLocationAndRotation(RelativeTransform.GetLocation(), RelativeTransform.GetRotation());
 
-	// Calculate the distance between the player camera manager and the portal
+	// Calculate the distance between the p	layer camera manager and the portal
 	float Distance = FVector::Distance(PlayerCameraManager->GetCameraLocation(), GetActorLocation());
 
 	// Add 1 to the distance for better result
@@ -169,7 +212,7 @@ void APortal::UpdateSceneCapture()
 void APortal::BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	AGEII_Project1Character* Character = Cast<AGEII_Project1Character>(OtherActor);
-	if (LinkedPortal)
+	if (LinkedPortal && LinkedPortal->GetLinkedPortal())
 	{
 		if (Character)
 		{
@@ -268,5 +311,5 @@ void APortal::TeleportPlayer(AGEII_Project1Character* Player)
 	FTransform NewTransform = UKismetMathLibrary::MakeTransform(Player->GetActorLocation(), Player->GetController()->GetControlRotation());
 
 	// Update the player's velocity with the new transform
-	Player->GetMovementComponent()->Velocity = UKismetMathLibrary::TransformDirection(NewTransform, RelativeVelocity);
+	Player->GetMovementComponent()->Velocity = UKismetMathLibrary::TransformDirection(NewTransform, RelativeVelocity * 2);
 }

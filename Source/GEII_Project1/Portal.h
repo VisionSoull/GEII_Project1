@@ -72,7 +72,18 @@ public:
 	USceneCaptureComponent2D* GetSceneCapture() const;
 
 	// Function to receive reference of a portal to link
-	void GetPortalToLink(APortal* PortalToLink);
+	void SetPortalToLink(APortal* PortalToLink);
+
+	void PlacePortal(FVector NewLocation, FRotator NewRotation);
+
+	APortal* GetLinkedPortal();
+
+public:
+	void EnableTickingAfterDelay();
+
+	void EnableTicking();
+
+	void SetupLinkedPortal();
 
 private:
 	// Function to update the Linked Portal's Camera
@@ -102,4 +113,5 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Tick")
 	TEnumAsByte<ETickingGroup> TickGroup;
 
+	FTimerHandle TimerHandle;
 };

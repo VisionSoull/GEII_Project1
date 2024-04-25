@@ -9,9 +9,7 @@
 #include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
 #include "Portal.h"
-#include "GEII_Project1Projectile.h"
 #include "TP_WeaponComponent.generated.h"
-
 
 class AGEII_Project1Character;
 
@@ -96,11 +94,19 @@ private:
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Portal", meta =(AllowPrivateAccess = "true"))
-	APortal* BluePortal;
+	TSubclassOf<class APortal> BluePortal;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Portal", meta =(AllowPrivateAccess = "true"))
-	APortal* OrangePortal;
+	TSubclassOf<class APortal> OrangePortal;
 
 	APortal* SpawnedBluePortal;
 	 
 	APortal* SpawnedOrangePortal;
+
+	FHitResult LastTraceHit;
+
+public:
+	void SpawnPortal(TSubclassOf<class APortal> PortalToSpawn, const FHitResult& Hit);
+	void ChangePortalLocation(APortal* PortalToChangeLocation, FVector NewLocation, FRotator NewRotation);
+	void SpawnBluePortal();
+	void SpawnOrangePortal();
 };

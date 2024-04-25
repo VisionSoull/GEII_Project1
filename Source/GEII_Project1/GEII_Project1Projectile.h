@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "TP_WeaponComponent.h"
 #include "GEII_Project1Projectile.generated.h"
 
 class USphereComponent;
@@ -30,9 +31,12 @@ private:
 public:
 	AGEII_Project1Projectile();
 
+	UFUNCTION()
+	void SetWeaponThatShot(UTP_WeaponComponent* Weapon);
+
 	/** called when projectile hits something */
 	UFUNCTION()
-	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	virtual void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	/** Returns CollisionComp subobject **/
 	USphereComponent* GetCollisionComp() const { return CollisionComp; }
@@ -42,5 +46,7 @@ public:
 	UPROPERTY(VisibleDefaultsOnly, Category = Projectile)
 	UStaticMeshComponent* MeshComponent;
 
+protected:
+	UTP_WeaponComponent* WeaponThatShotMe;
 };
 

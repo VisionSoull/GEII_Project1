@@ -3,7 +3,6 @@
 
 #include "TP_WeaponComponent.h"
 #include "GEII_Project1Character.h"
-#include "GEII_Project1Projectile.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Kismet/GameplayStatics.h"
@@ -13,6 +12,9 @@
 #include "Engine/World.h"
 #include "Engine/EngineTypes.h"
 #include "Portal.h"
+#include "GEII_Project1Projectile.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "DrawDebugHelpers.h"
 
 // Define custom trace channels
 #define ECC_PortalTraceChannel ECC_GameTraceChannel2
@@ -28,6 +30,8 @@ UTP_WeaponComponent::UTP_WeaponComponent()
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 
 	bLastTraceHitPortalWall = false;
+
+
 
 }
 
@@ -69,7 +73,8 @@ void UTP_WeaponComponent::Fire(TSubclassOf<class AGEII_Project1Projectile> Proje
 			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 
 			// Spawn Projectile
-			World->SpawnActor<AGEII_Project1Projectile>(Projectile, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			AGEII_Project1Projectile* ShotProjectile = World->SpawnActor<AGEII_Project1Projectile>(Projectile, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			ShotProjectile->SetWeaponThatShot(this);
 		}
 	}
 
@@ -103,7 +108,7 @@ void UTP_WeaponComponent::FireOrangeProjectile()
 
 bool UTP_WeaponComponent::PerformLineTrace()
 {
-	if (Character == nullptr || Character->GetController() == nullptr)
+	if (Character == nullptr)
 	{
 		return false;
 	}
@@ -130,8 +135,9 @@ bool UTP_WeaponComponent::PerformLineTrace()
 	bool bHit = GetWorld()->LineTraceSingleByObjectType(HitResult, CameraLocation, EndLocation, FCollisionObjectQueryParams(ObjectTypes), CollisionParams);
 
 	// Update the member variable based on the result
-	bLastTraceHitPortalWall = bHit && HitResult.GetActor() && HitResult.GetActor()->GetRootComponent()->GetCollisionObjectType() == ECC_GameTraceChannel2;
-
+	bLastTraceHitPortalWall = bHit && HitResult.GetActor() && HitResult.GetActor()->GetRootComponent()->GetCollisionObjectType() == ECC_PortalTraceChannel;
+	
+	LastTraceHit = HitResult;
 	return bLastTraceHitPortalWall;
 }
 
@@ -184,5 +190,77 @@ void UTP_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		{
 			Subsystem->RemoveMappingContext(FireMappingContext);
 		}
+	}
+}
+
+void UTP_WeaponComponent::SpawnPortal(TSubclassOf<class APortal> PortalToSpawn, const FHitResult& Hit)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Call Place Portal"));
+	UWorld* const World = GetWorld();
+	if (World)
+	{
+		FActorSpawnParameters ActorSpawnParams;
+		ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+		FVector LocationToSpawn = LastTraceHit.Location + LastTraceHit.Normal * 2;
+		if (PortalToSpawn == BluePortal)
+		{
+			SpawnedBluePortal = World->SpawnActor<APortal>(PortalToSpawn, LocationToSpawn, UKismetMathLibrary::MakeRotFromX(Hit.Normal), ActorSpawnParams);
+			if (SpawnedOrangePortal->IsValidLowLevel())
+			{
+				SpawnedBluePortal->SetPortalToLink(SpawnedOrangePortal);
+				SpawnedOrangePortal->SetPortalToLink(SpawnedBluePortal);
+				SpawnedBluePortal->SetupLinkedPortal();
+				SpawnedOrangePortal->SetupLinkedPortal();
+				SpawnedBluePortal->EnableTicking();
+				SpawnedOrangePortal->EnableTicking();
+			}
+		}
+		else if (PortalToSpawn == OrangePortal)
+		{
+			SpawnedOrangePortal = World->SpawnActor<APortal>(PortalToSpawn, LocationToSpawn, UKismetMathLibrary::MakeRotFromX(Hit.Normal), ActorSpawnParams);
+			if (SpawnedBluePortal->IsValidLowLevel())
+			{
+				
+				SpawnedBluePortal->SetPortalToLink(SpawnedOrangePortal);
+				SpawnedOrangePortal->SetupLinkedPortal();
+				SpawnedBluePortal->SetupLinkedPortal();
+				SpawnedBluePortal->EnableTicking();
+				SpawnedOrangePortal->EnableTicking();
+			}
+		}
+
+	}
+}
+
+void UTP_WeaponComponent::ChangePortalLocation(APortal* PortalToChangeLocation, FVector NewLocation, FRotator NewRotation)
+{
+	PortalToChangeLocation->SetActorLocationAndRotation(NewLocation, NewRotation);
+}
+
+void UTP_WeaponComponent::SpawnBluePortal()
+{
+	if (SpawnedBluePortal == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Try Spawn Blue Portal"));
+		SpawnPortal(BluePortal, LastTraceHit);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Try Change Location Blue Portal"));
+		ChangePortalLocation(SpawnedBluePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
+	}
+}
+
+void UTP_WeaponComponent::SpawnOrangePortal()
+{
+	if (SpawnedOrangePortal == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Try Spawn Orange Portal"));
+		SpawnPortal(OrangePortal, LastTraceHit);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Try Change Location Orange Portal"));
+		ChangePortalLocation(SpawnedOrangePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
 	}
 }

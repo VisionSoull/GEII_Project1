@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GEII_Project1Projectile.h"
+#include "TP_WeaponComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
 
@@ -41,4 +42,9 @@ AGEII_Project1Projectile::AGEII_Project1Projectile()
 void AGEII_Project1Projectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	Destroy();
+}
+
+void AGEII_Project1Projectile::SetWeaponThatShot(UTP_WeaponComponent* Weapon)
+{
+	WeaponThatShotMe = Weapon;
 }
