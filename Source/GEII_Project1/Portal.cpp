@@ -16,15 +16,13 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "TimerManager.h"
+#include "DrawDebugHelpers.h"
 
 // Sets default values
 APortal::APortal()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
-	// Set default tick group
-	TickGroup = TG_PostUpdateWork;
 
 	// Create default scene root
 	DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DefautlSceneRoot"));
@@ -64,8 +62,11 @@ void APortal::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Set the tick group
-	SetTickGroup(TickGroup);
+	UE_LOG(LogTemp, Warning, TEXT("BeginPlay"));
+
+	FTimerHandle Handle;
+
+	GetWorld()->GetTimerManager().SetTimer(Handle, this, &APortal::CheckPortalBounds, 1.f, false);
 
 	SetActorTickEnabled(false);
 
@@ -112,6 +113,8 @@ void APortal::BeginPlay()
 void APortal::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	DrawDebugBox(GetWorld(), GetActorLocation(), PortalMesh->CalcBounds(PortalMesh->GetComponentTransform()).BoxExtent, FColor::Red, false, 0.1f, SDPG_Foreground, 1.f);
 
 	if (LinkedPortal && LinkedPortal->IsValidLowLevel())
 	{
@@ -170,6 +173,27 @@ void APortal::SetupLinkedPortal()
 			LinkedPortalCamera->TextureTarget = Portal_RT;
 		}
 	}
+}
+
+void APortal::CheckPortalBounds()
+{
+	FBoxSphereBounds Bounds = PortalMesh->CalcBounds(PortalMesh->GetComponentTransform());
+	FVector BoxCenter = Bounds.Origin;
+	FVector BoxExtent = Bounds.BoxExtent;
+
+	FVector TopLimit = BoxCenter + FVector(0, 0, BoxExtent.Z);
+	FVector BottomLimit = BoxCenter + FVector(0, 0, -BoxExtent.Z);
+	FVector RightLimit = BoxCenter + FVector(BoxExtent.X, 0, 0);
+	FVector LeftLimit = BoxCenter + FVector(-BoxExtent.X, 0, 0);
+
+
+	DrawDebugSphere(GetWorld(), TopLimit, 5.f, 32, FColor::Green, true, -1.0F, 0, 1.0f);
+
+	DrawDebugSphere(GetWorld(), BottomLimit, 5.f, 32, FColor::Yellow, true, -1.0F, 0, 1.0f);
+
+	DrawDebugSphere(GetWorld(), RightLimit, 5.f, 32, FColor::Red, true, -1.0F, 0, 1.0f);
+
+	DrawDebugSphere(GetWorld(), LeftLimit, 5.f, 32, FColor::Magenta, true, -1.0F, 0, 1.0f);
 }
 
 void APortal::UpdateSceneCapture()

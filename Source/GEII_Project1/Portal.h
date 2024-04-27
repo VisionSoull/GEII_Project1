@@ -85,6 +85,8 @@ public:
 
 	void SetupLinkedPortal();
 
+	void CheckPortalBounds();
+
 private:
 	// Function to update the Linked Portal's Camera
 	void UpdateSceneCapture();
@@ -109,9 +111,5 @@ private:
 	AGEII_Project1Character* PlayerInPortal;
 
 protected:
-	// Variable to hold the tick group
-	UPROPERTY(EditAnywhere, Category = "Tick")
-	TEnumAsByte<ETickingGroup> TickGroup;
-
 	FTimerHandle TimerHandle;
 };

@@ -137,7 +137,10 @@ bool UTP_WeaponComponent::PerformLineTrace()
 	// Update the member variable based on the result
 	bLastTraceHitPortalWall = bHit && HitResult.GetActor() && HitResult.GetActor()->GetRootComponent()->GetCollisionObjectType() == ECC_PortalTraceChannel;
 	
-	LastTraceHit = HitResult;
+	if(bLastTraceHitPortalWall)
+	{
+		LastTraceHit = HitResult;
+	}
 	return bLastTraceHitPortalWall;
 }
 
@@ -247,7 +250,7 @@ void UTP_WeaponComponent::SpawnBluePortal()
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Try Change Location Blue Portal"));
-		ChangePortalLocation(SpawnedBluePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
+		ChangePortalLocation(SpawnedBluePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal) * 2);
 	}
 }
 
@@ -261,6 +264,6 @@ void UTP_WeaponComponent::SpawnOrangePortal()
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Try Change Location Orange Portal"));
-		ChangePortalLocation(SpawnedOrangePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
+		ChangePortalLocation(SpawnedOrangePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal) * 2);
 	}
 }
