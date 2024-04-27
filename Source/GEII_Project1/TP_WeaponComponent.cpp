@@ -203,8 +203,8 @@ void UTP_WeaponComponent::SpawnPortal(TSubclassOf<class APortal> PortalToSpawn, 
 	if (World)
 	{
 		FActorSpawnParameters ActorSpawnParams;
-		ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-		FVector LocationToSpawn = LastTraceHit.Location + LastTraceHit.Normal * 2;
+		ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		FVector LocationToSpawn = LastTraceHit.Location + LastTraceHit.Normal;
 		if (PortalToSpawn == BluePortal)
 		{
 			SpawnedBluePortal = World->SpawnActor<APortal>(PortalToSpawn, LocationToSpawn, UKismetMathLibrary::MakeRotFromX(Hit.Normal), ActorSpawnParams);
@@ -212,6 +212,7 @@ void UTP_WeaponComponent::SpawnPortal(TSubclassOf<class APortal> PortalToSpawn, 
 			{
 				SpawnedBluePortal->SetPortalToLink(SpawnedOrangePortal);
 				SpawnedOrangePortal->SetPortalToLink(SpawnedBluePortal);
+				SpawnedBluePortal->SetupLinkedPortal();
 				SpawnedBluePortal->SetupLinkedPortal();
 				SpawnedOrangePortal->SetupLinkedPortal();
 				SpawnedBluePortal->EnableTicking();
@@ -225,6 +226,7 @@ void UTP_WeaponComponent::SpawnPortal(TSubclassOf<class APortal> PortalToSpawn, 
 			{
 				
 				SpawnedBluePortal->SetPortalToLink(SpawnedOrangePortal);
+				SpawnedOrangePortal->SetPortalToLink(SpawnedBluePortal);
 				SpawnedOrangePortal->SetupLinkedPortal();
 				SpawnedBluePortal->SetupLinkedPortal();
 				SpawnedBluePortal->EnableTicking();
@@ -250,7 +252,7 @@ void UTP_WeaponComponent::SpawnBluePortal()
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Try Change Location Blue Portal"));
-		ChangePortalLocation(SpawnedBluePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal) * 2);
+		ChangePortalLocation(SpawnedBluePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
 	}
 }
 
@@ -264,6 +266,6 @@ void UTP_WeaponComponent::SpawnOrangePortal()
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Try Change Location Orange Portal"));
-		ChangePortalLocation(SpawnedOrangePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal) * 2);
+		ChangePortalLocation(SpawnedOrangePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
 	}
 }

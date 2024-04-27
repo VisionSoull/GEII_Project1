@@ -186,7 +186,6 @@ void APortal::CheckPortalBounds()
 	FVector RightLimit = BoxCenter + FVector(BoxExtent.X, 0, 0);
 	FVector LeftLimit = BoxCenter + FVector(-BoxExtent.X, 0, 0);
 
-
 	DrawDebugSphere(GetWorld(), TopLimit, 5.f, 32, FColor::Green, true, -1.0F, 0, 1.0f);
 
 	DrawDebugSphere(GetWorld(), BottomLimit, 5.f, 32, FColor::Yellow, true, -1.0F, 0, 1.0f);
