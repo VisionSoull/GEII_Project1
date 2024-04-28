@@ -118,5 +118,5 @@ protected:
 
 	void CheckPortalBounds();
 
-	bool CheckPointToMovePortal(UWorld* World, FVector Point);
+	bool CheckLimitOutsideWall(UWorld* World, FVector Limit, FVector Center);
 };

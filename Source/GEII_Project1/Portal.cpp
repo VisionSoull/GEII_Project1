@@ -32,6 +32,8 @@ APortal::APortal()
 
 	ObjectTypes.Empty();
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PortalTraceChannel));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_GameTraceChannel3));
 
 	// Create default scene root
 	DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DefautlSceneRoot"));
@@ -72,8 +74,6 @@ void APortal::BeginPlay()
 	Super::BeginPlay();
 
 	CheckPortalBounds();
-
-	//SetActorTickEnabled(false);
 
 	// Get the size of the portal mesh
 	FBoxSphereBounds Bounds = PortalMesh->GetStaticMesh()->GetBounds();
@@ -119,8 +119,6 @@ void APortal::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	DrawDebugBox(GetWorld(), GetActorLocation(), PortalMesh->CalcBounds(PortalMesh->GetComponentTransform()).BoxExtent, FColor::Red, false, 0.1f, SDPG_Foreground, 1.f);
-
 	if (LinkedPortal && LinkedPortal->IsValidLowLevel())
 	{
 		UpdateSceneCapture();
@@ -146,6 +144,24 @@ void APortal::SetPortalToLink(APortal* PortalToLink)
 
 void APortal::PlacePortal(FVector NewLocation, FRotator NewRotation)
 {
+	FCollisionShape CollisionSphere = FCollisionShape::MakeSphere(5.f);
+	FCollisionQueryParams QueryParams;
+	QueryParams.bTraceComplex = true;
+	QueryParams.AddIgnoredActor(this);
+	TArray<FOverlapResult> Overlaps;
+
+	bool bHit = GetWorld()->OverlapMultiByObjectType(Overlaps, NewLocation, FQuat::Identity, ECC_WorldStatic, CollisionSphere, QueryParams);
+
+	if (bHit)
+	{
+		for (const FOverlapResult& Result : Overlaps)
+		{
+			if (Cast<APortal>(Result.GetActor()))
+			{
+				return;
+			}
+		}
+	}
 	SetActorLocationAndRotation(NewLocation, NewRotation);
 	CheckPortalBounds();
 }
@@ -318,50 +334,97 @@ void APortal::CheckPortalBounds()
 	FVector RightLimit = BoxCenter + GetActorRightVector() * BoxExtent.X;
 	FVector LeftLimit = BoxCenter - GetActorRightVector() * BoxExtent.X;
 
+	DrawDebugSphere(World, TopLimit, 5.f, 16, FColor::Magenta, false, 1.f, 0, 1.f);
+	DrawDebugSphere(World, BottomLimit, 5.f, 16, FColor::Magenta, false, 1.f, 0, 1.f);
+	DrawDebugSphere(World, RightLimit, 5.f, 16, FColor::Magenta, false, 1.f, 0, 1.f);
+	DrawDebugSphere(World, LeftLimit, 5.f, 16, FColor::Magenta, false, 1.f, 0, 1.f);
+
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(this);
 
-	/*if (CheckPointToMovePortal(World, TopLimit) && CheckPointToMovePortal(World, BottomLimit))
-	{
-		// Destroy Portal because it cannot spawn or move
-		
-	}*/
+	TArray<FHitResult> HitResults;
+
+	FCollisionShape CollisionSphere = FCollisionShape::MakeSphere(5.f);
+	FCollisionQueryParams QueryParams;
+	QueryParams.bTraceComplex = true;
+	QueryParams.AddIgnoredActor(this);
 
 	// Top Limit Check
 
-	if (CheckPointToMovePortal(World, TopLimit))
-	{
-		// Perform a sphere trace to the center of the portal
-		TArray<FHitResult> HitResults;
+	bool bTopHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+		World,
+		BoxCenter,
+		TopLimit,
+		5.f,
+		ObjectTypes,
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::ForDuration,
+		HitResults,
+		true,
+		FLinearColor::Red,
+		FLinearColor::Green,
+		0.5f
+	);
 
-		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
-			World,
+	bool bAnyTopObjectHit = false;
+
+	if (bTopHit)
+	{
+		for (const FHitResult& Result : HitResults)
+		{
+			if (Result.GetActor() != CurrentWall || Result.GetActor()->IsA(APortal::StaticClass()))
+			{
+				DrawDebugSphere(World, Result.Location, 10.f, 16, FColor::Yellow, false, 0.5f, 0, 1.f);
+				// Found an object that is not the current wall
+				float DistanceToLimit = (TopLimit - Result.Location).Size();
+				FVector NewLocation = GetActorLocation() - GetActorUpVector() * DistanceToLimit;
+				SetActorLocationAndRotation(NewLocation, GetActorRotation());
+				bAnyTopObjectHit = true;
+				break;
+			}
+		}
+	} 
+	if(!bAnyTopObjectHit)
+	{
+		// Verify if the Top is Overlapping with anything
+		bool bIsOverlapping = World->OverlapBlockingTestByChannel(
 			TopLimit,
-			BoxCenter,
-			5.f,
-			ObjectTypes,
-			false,
-			ActorsToIgnore,
-			EDrawDebugTrace::ForDuration,
-			HitResults,
-			true,
-			FLinearColor::Red,
-			FLinearColor::Green,
-			2.f
+			FQuat::Identity,
+			ECC_PortalTraceChannel,
+			CollisionSphere,
+			QueryParams
 		);
 
-		if (bHit)
+		if (!bIsOverlapping)
 		{
-			for (const FHitResult& HitResult : HitResults)
+			// Sphere Trace from limit to the center of the Portal
+			FHitResult HitResult;
+			bool bOutsideHit = UKismetSystemLibrary::SphereTraceSingleForObjects(
+				World,
+				TopLimit,
+				BoxCenter,
+				5.f,
+				ObjectTypes,
+				false,
+				ActorsToIgnore,
+				EDrawDebugTrace::ForDuration,
+				HitResult,
+				true,
+				FLinearColor::Yellow,
+				FLinearColor::Blue,
+				10.f
+			);
+
+			if (bOutsideHit && HitResult.GetActor() == CurrentWall)
 			{
 				if (HitResult.GetActor() == CurrentWall)
 				{
 					// The portal wall was hit, adjust the portal position
 					float DistanceToWall = (HitResult.Location - TopLimit).Size();
 					// Move the portal the distance to the wall
-					FVector NewLocation = GetActorLocation() - GetActorUpVector() * DistanceToWall;
-					UE_LOG(LogTemp, Warning, TEXT("Set New Top Location"));
-					SetActorLocationAndRotation(NewLocation, GetActorRotation());
+					FVector NewPosition = GetActorLocation() - GetActorUpVector() * DistanceToWall;
+					SetActorLocationAndRotation(NewPosition, GetActorRotation());
 				}
 			}
 		}
@@ -369,159 +432,247 @@ void APortal::CheckPortalBounds()
 
 	// Bottom Limit Check
 
-	if (CheckPointToMovePortal(World, BottomLimit))
+	bool bBottomHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+		World,
+		BoxCenter,
+		BottomLimit,
+		5.f,
+		ObjectTypes,
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::ForDuration,
+		HitResults,
+		true,
+		FLinearColor::Red,
+		FLinearColor::Green,
+		0.5f
+	);
+
+	bool bAnyBottomObjectHit = false;
+
+	if (bBottomHit)
 	{
-		// Perform a sphere trace to the center of the portal
-		TArray<FHitResult> HitResults;
-
-		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
-			World,
-			BottomLimit,
-			BoxCenter,
-			5.f,
-			ObjectTypes,
-			false,
-			ActorsToIgnore,
-			EDrawDebugTrace::ForDuration,
-			HitResults,
-			true,
-			FLinearColor::Red,
-			FLinearColor::Green,
-			2.f
-		);
-
-
-		if (bHit)
+		for (const FHitResult& Result : HitResults)
 		{
-			for (const FHitResult& HitResult : HitResults)
+			if (Result.GetActor() != CurrentWall || Result.GetActor()->IsA(APortal::StaticClass()))
 			{
-				if (HitResult.GetActor() == CurrentWall)
-				{
-					// The portal wall was hit, adjust the portal position
-					float DistanceToWall = (HitResult.Location - BottomLimit).Size();
-					// Move the portal the distance to the wall
-					FVector NewLocation = GetActorLocation() + GetActorUpVector() * DistanceToWall;
-					SetActorLocationAndRotation(NewLocation, GetActorRotation());
-				}
+				DrawDebugSphere(World, Result.Location, 10.f, 16, FColor::Yellow, false, 0.5f, 0, 1.f);
+				// Found an object that is not the current wall
+				float DistanceToLimit = (BottomLimit - Result.Location).Size();
+				FVector NewLocation = GetActorLocation() + GetActorUpVector() * DistanceToLimit;
+				SetActorLocationAndRotation(NewLocation, GetActorRotation());
+				bAnyBottomObjectHit = true;
+				break;
+			}
+		}
+	}
+	if (!bAnyBottomObjectHit)
+	{
+			// Verify if the Top is Overlapping with anything
+			bool bIsOverlapping = World->OverlapBlockingTestByChannel(
+				BottomLimit,
+				FQuat::Identity,
+				ECC_PortalTraceChannel,
+				CollisionSphere,
+				QueryParams
+			);
+
+		if (!bIsOverlapping)
+		{
+
+				// Sphere Trace from limit to the center of the Portal
+				FHitResult HitResult;
+			bool bOutsideHit = UKismetSystemLibrary::SphereTraceSingleForObjects(
+				World,
+				BottomLimit,
+				BoxCenter,
+				5.f,
+				ObjectTypes,
+				false,
+				ActorsToIgnore,
+				EDrawDebugTrace::ForDuration,
+				HitResult,
+				true,
+				FLinearColor::Yellow,
+				FLinearColor::Blue,
+				10.f
+			);
+
+			if (bOutsideHit && HitResult.GetActor() == CurrentWall)
+			{
+					if (HitResult.GetActor() == CurrentWall)
+					{
+						// The portal wall was hit, adjust the portal position
+						float DistanceToWall = (HitResult.Location - BottomLimit).Size();
+						// Move the portal the distance to the wall
+						FVector NewPosition = GetActorLocation() + GetActorUpVector() * DistanceToWall;
+						SetActorLocationAndRotation(NewPosition, GetActorRotation());
+					}
 			}
 		}
 	}
 
 	// Right Limit Check
 
-	if (CheckPointToMovePortal(World, RightLimit))
+	bool bRightHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+		World,
+		BoxCenter,
+		RightLimit,
+		5.f,
+		ObjectTypes,
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::ForDuration,
+		HitResults,
+		true,
+		FLinearColor::Red,
+		FLinearColor::Green,
+		0.5f
+	);
+
+	bool bAnyRightObjectHit = false;
+
+	if (bRightHit)
 	{
-		// Perform a sphere trace to the center of the portal
-		TArray<FHitResult> HitResults;
-
-		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
-			World,
-			RightLimit,
-			BoxCenter,
-			5.f,
-			ObjectTypes,
-			false,
-			ActorsToIgnore,
-			EDrawDebugTrace::ForDuration,
-			HitResults,
-			true,
-			FLinearColor::Red,
-			FLinearColor::Green,
-			2.f
-		);
-
-		if (bHit)
+		for (const FHitResult& Result : HitResults)
 		{
-			for (const FHitResult& HitResult : HitResults)
+			if (Result.GetActor() != CurrentWall || Result.GetActor()->IsA(APortal::StaticClass()))
 			{
-				if (HitResult.GetActor() == CurrentWall)
-				{
-					// The portal wall was hit, adjust the portal position
-					float DistanceToWall = (HitResult.Location - RightLimit).Size();
-					// Move the portal the distance to the wall
-					FVector NewLocation = GetActorLocation() + GetActorRightVector() * DistanceToWall;
-					UE_LOG(LogTemp, Warning, TEXT("Set New Right Location"));
-					SetActorLocationAndRotation(NewLocation, GetActorRotation());
-				}
+				DrawDebugSphere(World, Result.Location, 10.f, 16, FColor::Yellow, false, 0.5f, 0, 1.f);
+				// Found an object that is not the current wall
+				float DistanceToLimit = (RightLimit - Result.Location).Size();
+				FVector NewLocation = GetActorLocation() - GetActorRightVector() * DistanceToLimit;
+				SetActorLocationAndRotation(NewLocation, GetActorRotation());
+				bAnyRightObjectHit = true;
+				break;
+			}
+		}
+	}
+	if (!bAnyRightObjectHit)
+	{
+			// Verify if the Top is Overlapping with anything
+			bool bIsOverlapping = World->OverlapBlockingTestByChannel(
+				RightLimit,
+				FQuat::Identity,
+				ECC_PortalTraceChannel,
+				CollisionSphere,
+				QueryParams
+			);
+
+		if (!bIsOverlapping)
+		{
+			// Sphere Trace from limit to the center of the Portal
+			FHitResult HitResult;
+			bool bOutsideHit = UKismetSystemLibrary::SphereTraceSingleForObjects(
+				World,
+				RightLimit,
+				BoxCenter,
+				5.f,
+				ObjectTypes,
+				false,
+				ActorsToIgnore,
+				EDrawDebugTrace::ForDuration,
+				HitResult,
+				true,
+				FLinearColor::Yellow,
+				FLinearColor::Blue,
+				10.f
+			);
+
+			if (bOutsideHit && HitResult.GetActor() == CurrentWall)
+			{
+					if (HitResult.GetActor() == CurrentWall)
+					{
+						// The portal wall was hit, adjust the portal position
+						float DistanceToWall = (HitResult.Location - RightLimit).Size();
+						// Move the portal the distance to the wall
+						FVector NewPosition = GetActorLocation() - GetActorRightVector() * DistanceToWall;
+						SetActorLocationAndRotation(NewPosition, GetActorRotation());
+					}
 			}
 		}
 	}
 
 	// Left Limit Check
 
-	if (CheckPointToMovePortal(World, LeftLimit))
-	{
-		// Perform a sphere trace to the center of the portal
-		TArray<FHitResult> HitResults;
-
-		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
-			World,
-			LeftLimit,
-			BoxCenter,
-			5.f,
-			ObjectTypes,
-			false,
-			ActorsToIgnore,
-			EDrawDebugTrace::ForDuration,
-			HitResults,
-			true,
-			FLinearColor::Red,
-			FLinearColor::Green,
-			2.f
-		);
-
-
-		if (bHit)
-		{
-			for (const FHitResult& HitResult : HitResults)
-			{
-				if (HitResult.GetActor() == CurrentWall)
-				{
-					// The portal wall was hit, adjust the portal position
-					float DistanceToWall = (HitResult.Location - LeftLimit).Size();
-					// Move the portal the distance to the wall
-					FVector NewLocation = GetActorLocation() - GetActorRightVector() * DistanceToWall;
-					UE_LOG(LogTemp, Warning, TEXT("Set New Left Location"));
-					SetActorLocationAndRotation(NewLocation, GetActorRotation());
-				}
-			}
-		}
-	}
-}
-
-bool APortal::CheckPointToMovePortal(UWorld* World, FVector Point)
-{
-	TArray<FOverlapResult> OverlapResults;
-	FCollisionShape CollisionSphere = FCollisionShape::MakeSphere(5.f);
-	FCollisionQueryParams QueryParams;
-	QueryParams.bTraceComplex = true;
-	QueryParams.AddIgnoredActor(this);
-
-	DrawDebugSphere(World, Point, 5.f, 16, FColor::Magenta, false, 2.f, 0, 1.f);
-
-	bool bHasOverlap = World->OverlapMultiByChannel(
-		OverlapResults,
-		Point,
-		FQuat::Identity,
-		ECC_PortalTraceChannel,
-		CollisionSphere,
-		QueryParams
+	bool bLeftHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+		World,
+		BoxCenter,
+		LeftLimit,
+		5.f,
+		ObjectTypes,
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::ForDuration,
+		HitResults,
+		true,
+		FLinearColor::Red,
+		FLinearColor::Green,
+		0.5f
 	);
 
-	if (bHasOverlap)
+	bool bAnyLeftObjectHit = false;
+
+	if (bLeftHit)
 	{
-		for (const FOverlapResult& Result : OverlapResults)
+		for (const FHitResult& Result : HitResults)
 		{
-			if (Result.GetActor() != nullptr && Result.GetActor() != CurrentWall && Result.GetActor())
+			if (Result.GetActor() != CurrentWall || Result.GetActor()->IsA(APortal::StaticClass()))
 			{
-				return true; // There is an overlap with something other than the current wall
+				DrawDebugSphere(World, Result.Location, 10.f, 16, FColor::Yellow, false, 0.5f, 0, 1.f);
+				// Found an object that is not the current wall
+				float DistanceToLimit = (LeftLimit - Result.Location).Size();
+				FVector NewLocation = GetActorLocation() + GetActorRightVector() * DistanceToLimit;
+				SetActorLocationAndRotation(NewLocation, GetActorRotation());
+				bAnyLeftObjectHit = true;
+				break;
 			}
 		}
-		return false;
 	}
+	if (!bAnyLeftObjectHit)
+	{
+		// Verify if the Top is Overlapping with anything
+			bool bIsOverlapping = World->OverlapBlockingTestByChannel(
+				LeftLimit,
+				FQuat::Identity,
+				ECC_PortalTraceChannel,
+				CollisionSphere,
+				QueryParams
+			);
 
-	return true;
+		if (!bIsOverlapping)
+		{
+				// Sphere Trace from limit to the center of the Portal
+				FHitResult HitResult;
+			bool bOutsideHit = UKismetSystemLibrary::SphereTraceSingleForObjects(
+				World,
+				LeftLimit,
+				BoxCenter,
+				5.f,
+				ObjectTypes,
+				false,
+				ActorsToIgnore,
+				EDrawDebugTrace::ForDuration,
+				HitResult,
+				true,
+				FLinearColor::Yellow,
+				FLinearColor::Blue,
+				10.f
+			);
 
+			if (bOutsideHit && HitResult.GetActor() == CurrentWall)
+			{
+					if (HitResult.GetActor() == CurrentWall)
+					{
+							// The portal wall was hit, adjust the portal position
+							float DistanceToWall = (HitResult.Location - LeftLimit).Size();
+						// Move the portal the distance to the wall
+						FVector NewPosition = GetActorLocation() + GetActorRightVector() * DistanceToWall;
+						SetActorLocationAndRotation(NewPosition, GetActorRotation());
+					}
+			}
+		}
+	}
 }
 
 void APortal::SetCurrentWall(AActor* NewWall)
