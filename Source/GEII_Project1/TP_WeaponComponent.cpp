@@ -30,9 +30,6 @@ UTP_WeaponComponent::UTP_WeaponComponent()
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 
 	bLastTraceHitPortalWall = false;
-
-
-
 }
 
 void UTP_WeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -196,41 +193,38 @@ void UTP_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 }
 
-void UTP_WeaponComponent::SpawnPortal(TSubclassOf<class APortal> PortalToSpawn, const FHitResult& Hit)
+void UTP_WeaponComponent::SpawnPortal(TSubclassOf<class APortal> PortalToSpawn)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Call Place Portal"));
 	UWorld* const World = GetWorld();
 	if (World)
 	{
 		FActorSpawnParameters ActorSpawnParams;
-		ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		FVector LocationToSpawn = LastTraceHit.Location + LastTraceHit.Normal;
 		if (PortalToSpawn == BluePortal)
 		{
-			SpawnedBluePortal = World->SpawnActor<APortal>(PortalToSpawn, LocationToSpawn, UKismetMathLibrary::MakeRotFromX(Hit.Normal), ActorSpawnParams);
+			SpawnedBluePortal = World->SpawnActor<APortal>(PortalToSpawn, FVector(0,0,0), FRotator(0, 0, 0), ActorSpawnParams);
+			SpawnedBluePortal->SetCurrentWall(LastTraceHit.GetActor());
+			SpawnedBluePortal->PlacePortal(LocationToSpawn, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
 			if (SpawnedOrangePortal->IsValidLowLevel())
 			{
 				SpawnedBluePortal->SetPortalToLink(SpawnedOrangePortal);
 				SpawnedOrangePortal->SetPortalToLink(SpawnedBluePortal);
 				SpawnedBluePortal->SetupLinkedPortal();
-				SpawnedBluePortal->SetupLinkedPortal();
 				SpawnedOrangePortal->SetupLinkedPortal();
-				SpawnedBluePortal->EnableTicking();
-				SpawnedOrangePortal->EnableTicking();
 			}
 		}
 		else if (PortalToSpawn == OrangePortal)
 		{
-			SpawnedOrangePortal = World->SpawnActor<APortal>(PortalToSpawn, LocationToSpawn, UKismetMathLibrary::MakeRotFromX(Hit.Normal), ActorSpawnParams);
+			SpawnedOrangePortal = World->SpawnActor<APortal>(PortalToSpawn, LocationToSpawn, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal), ActorSpawnParams);
+			SpawnedOrangePortal->SetCurrentWall(LastTraceHit.GetActor());
+			SpawnedOrangePortal->PlacePortal(LocationToSpawn, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
 			if (SpawnedBluePortal->IsValidLowLevel())
 			{
-				
-				SpawnedBluePortal->SetPortalToLink(SpawnedOrangePortal);
 				SpawnedOrangePortal->SetPortalToLink(SpawnedBluePortal);
+				SpawnedBluePortal->SetPortalToLink(SpawnedOrangePortal);
 				SpawnedOrangePortal->SetupLinkedPortal();
 				SpawnedBluePortal->SetupLinkedPortal();
-				SpawnedBluePortal->EnableTicking();
-				SpawnedOrangePortal->EnableTicking();
 			}
 		}
 
@@ -246,12 +240,11 @@ void UTP_WeaponComponent::SpawnBluePortal()
 {
 	if (SpawnedBluePortal == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Try Spawn Blue Portal"));
-		SpawnPortal(BluePortal, LastTraceHit);
+		SpawnPortal(BluePortal);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Try Change Location Blue Portal"));
+		SpawnedBluePortal->SetCurrentWall(LastTraceHit.GetActor());
 		ChangePortalLocation(SpawnedBluePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
 	}
 }
@@ -260,12 +253,11 @@ void UTP_WeaponComponent::SpawnOrangePortal()
 {
 	if (SpawnedOrangePortal == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Try Spawn Orange Portal"));
-		SpawnPortal(OrangePortal, LastTraceHit);
+		SpawnPortal(OrangePortal);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Try Change Location Orange Portal"));
+		SpawnedOrangePortal->SetCurrentWall(LastTraceHit.GetActor());
 		ChangePortalLocation(SpawnedOrangePortal, LastTraceHit.Location, UKismetMathLibrary::MakeRotFromX(LastTraceHit.Normal));
 	}
 }

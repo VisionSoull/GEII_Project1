@@ -105,7 +105,7 @@ protected:
 	FHitResult LastTraceHit;
 
 public:
-	void SpawnPortal(TSubclassOf<class APortal> PortalToSpawn, const FHitResult& Hit);
+	void SpawnPortal(TSubclassOf<class APortal> PortalToSpawn);
 	void ChangePortalLocation(APortal* PortalToChangeLocation, FVector NewLocation, FRotator NewRotation);
 	void SpawnBluePortal();
 	void SpawnOrangePortal();

@@ -79,13 +79,10 @@ public:
 	APortal* GetLinkedPortal();
 
 public:
-	void EnableTickingAfterDelay();
-
-	void EnableTicking();
 
 	void SetupLinkedPortal();
 
-	void CheckPortalBounds();
+	void SetCurrentWall(AActor* NewWall);
 
 private:
 	// Function to update the Linked Portal's Camera
@@ -111,5 +108,15 @@ private:
 	AGEII_Project1Character* PlayerInPortal;
 
 protected:
+
 	FTimerHandle TimerHandle;
+
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
+	AActor* CurrentWall;
+
+	void CheckPortalBounds();
+
+	bool CheckPointToMovePortal(UWorld* World, FVector Point);
 };

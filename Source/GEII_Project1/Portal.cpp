@@ -16,13 +16,22 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "TimerManager.h"
+#include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include "CollisionQueryParams.h"
+
+
+// Define custom trace channels
+#define ECC_PortalTraceChannel ECC_GameTraceChannel2
 
 // Sets default values
 APortal::APortal()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	ObjectTypes.Empty();
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PortalTraceChannel));
 
 	// Create default scene root
 	DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DefautlSceneRoot"));
@@ -62,13 +71,9 @@ void APortal::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UE_LOG(LogTemp, Warning, TEXT("BeginPlay"));
+	CheckPortalBounds();
 
-	FTimerHandle Handle;
-
-	GetWorld()->GetTimerManager().SetTimer(Handle, this, &APortal::CheckPortalBounds, 1.f, false);
-
-	SetActorTickEnabled(false);
+	//SetActorTickEnabled(false);
 
 	// Get the size of the portal mesh
 	FBoxSphereBounds Bounds = PortalMesh->GetStaticMesh()->GetBounds();
@@ -142,24 +147,12 @@ void APortal::SetPortalToLink(APortal* PortalToLink)
 void APortal::PlacePortal(FVector NewLocation, FRotator NewRotation)
 {
 	SetActorLocationAndRotation(NewLocation, NewRotation);
+	CheckPortalBounds();
 }
 
 APortal* APortal::GetLinkedPortal()
 {
 	return LinkedPortal;
-}
-
-void APortal::EnableTickingAfterDelay()
-{
-	if (LinkedPortal && LinkedPortal->IsValidLowLevel())
-	{
-		SetActorTickEnabled(true);
-	}
-}
-
-void APortal::EnableTicking()
-{
-	GetWorldTimerManager().SetTimer(TimerHandle, this, &APortal::EnableTickingAfterDelay, 0.2f, false);
 }
 
 void APortal::SetupLinkedPortal()
@@ -173,26 +166,6 @@ void APortal::SetupLinkedPortal()
 			LinkedPortalCamera->TextureTarget = Portal_RT;
 		}
 	}
-}
-
-void APortal::CheckPortalBounds()
-{
-	FBoxSphereBounds Bounds = PortalMesh->CalcBounds(PortalMesh->GetComponentTransform());
-	FVector BoxCenter = Bounds.Origin;
-	FVector BoxExtent = Bounds.BoxExtent;
-
-	FVector TopLimit = BoxCenter + FVector(0, 0, BoxExtent.Z);
-	FVector BottomLimit = BoxCenter + FVector(0, 0, -BoxExtent.Z);
-	FVector RightLimit = BoxCenter + FVector(BoxExtent.X, 0, 0);
-	FVector LeftLimit = BoxCenter + FVector(-BoxExtent.X, 0, 0);
-
-	DrawDebugSphere(GetWorld(), TopLimit, 5.f, 32, FColor::Green, true, -1.0F, 0, 1.0f);
-
-	DrawDebugSphere(GetWorld(), BottomLimit, 5.f, 32, FColor::Yellow, true, -1.0F, 0, 1.0f);
-
-	DrawDebugSphere(GetWorld(), RightLimit, 5.f, 32, FColor::Red, true, -1.0F, 0, 1.0f);
-
-	DrawDebugSphere(GetWorld(), LeftLimit, 5.f, 32, FColor::Magenta, true, -1.0F, 0, 1.0f);
 }
 
 void APortal::UpdateSceneCapture()
@@ -325,4 +298,233 @@ void APortal::TeleportPlayer(AGEII_Project1Character* Player)
 
 	// Update the player's velocity with the new transform
 	Player->GetMovementComponent()->Velocity = UKismetMathLibrary::TransformDirection(NewTransform, RelativeVelocity);
+}
+
+
+void APortal::CheckPortalBounds()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	FBoxSphereBounds Bounds = PortalMesh->CalcBounds(PortalMesh->GetComponentTransform());
+	FVector BoxCenter = Bounds.Origin;
+	FVector BoxExtent = Bounds.BoxExtent;
+
+	FVector TopLimit = BoxCenter + GetActorUpVector() * BoxExtent.Z;
+	FVector BottomLimit = BoxCenter - GetActorUpVector() * BoxExtent.Z;
+	FVector RightLimit = BoxCenter + GetActorRightVector() * BoxExtent.X;
+	FVector LeftLimit = BoxCenter - GetActorRightVector() * BoxExtent.X;
+
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+
+	/*if (CheckPointToMovePortal(World, TopLimit) && CheckPointToMovePortal(World, BottomLimit))
+	{
+		// Destroy Portal because it cannot spawn or move
+		
+	}*/
+
+	// Top Limit Check
+
+	if (CheckPointToMovePortal(World, TopLimit))
+	{
+		// Perform a sphere trace to the center of the portal
+		TArray<FHitResult> HitResults;
+
+		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+			World,
+			TopLimit,
+			BoxCenter,
+			5.f,
+			ObjectTypes,
+			false,
+			ActorsToIgnore,
+			EDrawDebugTrace::ForDuration,
+			HitResults,
+			true,
+			FLinearColor::Red,
+			FLinearColor::Green,
+			2.f
+		);
+
+		if (bHit)
+		{
+			for (const FHitResult& HitResult : HitResults)
+			{
+				if (HitResult.GetActor() == CurrentWall)
+				{
+					// The portal wall was hit, adjust the portal position
+					float DistanceToWall = (HitResult.Location - TopLimit).Size();
+					// Move the portal the distance to the wall
+					FVector NewLocation = GetActorLocation() - GetActorUpVector() * DistanceToWall;
+					UE_LOG(LogTemp, Warning, TEXT("Set New Top Location"));
+					SetActorLocationAndRotation(NewLocation, GetActorRotation());
+				}
+			}
+		}
+	}
+
+	// Bottom Limit Check
+
+	if (CheckPointToMovePortal(World, BottomLimit))
+	{
+		// Perform a sphere trace to the center of the portal
+		TArray<FHitResult> HitResults;
+
+		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+			World,
+			BottomLimit,
+			BoxCenter,
+			5.f,
+			ObjectTypes,
+			false,
+			ActorsToIgnore,
+			EDrawDebugTrace::ForDuration,
+			HitResults,
+			true,
+			FLinearColor::Red,
+			FLinearColor::Green,
+			2.f
+		);
+
+
+		if (bHit)
+		{
+			for (const FHitResult& HitResult : HitResults)
+			{
+				if (HitResult.GetActor() == CurrentWall)
+				{
+					// The portal wall was hit, adjust the portal position
+					float DistanceToWall = (HitResult.Location - BottomLimit).Size();
+					// Move the portal the distance to the wall
+					FVector NewLocation = GetActorLocation() + GetActorUpVector() * DistanceToWall;
+					SetActorLocationAndRotation(NewLocation, GetActorRotation());
+				}
+			}
+		}
+	}
+
+	// Right Limit Check
+
+	if (CheckPointToMovePortal(World, RightLimit))
+	{
+		// Perform a sphere trace to the center of the portal
+		TArray<FHitResult> HitResults;
+
+		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+			World,
+			RightLimit,
+			BoxCenter,
+			5.f,
+			ObjectTypes,
+			false,
+			ActorsToIgnore,
+			EDrawDebugTrace::ForDuration,
+			HitResults,
+			true,
+			FLinearColor::Red,
+			FLinearColor::Green,
+			2.f
+		);
+
+		if (bHit)
+		{
+			for (const FHitResult& HitResult : HitResults)
+			{
+				if (HitResult.GetActor() == CurrentWall)
+				{
+					// The portal wall was hit, adjust the portal position
+					float DistanceToWall = (HitResult.Location - RightLimit).Size();
+					// Move the portal the distance to the wall
+					FVector NewLocation = GetActorLocation() + GetActorRightVector() * DistanceToWall;
+					UE_LOG(LogTemp, Warning, TEXT("Set New Right Location"));
+					SetActorLocationAndRotation(NewLocation, GetActorRotation());
+				}
+			}
+		}
+	}
+
+	// Left Limit Check
+
+	if (CheckPointToMovePortal(World, LeftLimit))
+	{
+		// Perform a sphere trace to the center of the portal
+		TArray<FHitResult> HitResults;
+
+		bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
+			World,
+			LeftLimit,
+			BoxCenter,
+			5.f,
+			ObjectTypes,
+			false,
+			ActorsToIgnore,
+			EDrawDebugTrace::ForDuration,
+			HitResults,
+			true,
+			FLinearColor::Red,
+			FLinearColor::Green,
+			2.f
+		);
+
+
+		if (bHit)
+		{
+			for (const FHitResult& HitResult : HitResults)
+			{
+				if (HitResult.GetActor() == CurrentWall)
+				{
+					// The portal wall was hit, adjust the portal position
+					float DistanceToWall = (HitResult.Location - LeftLimit).Size();
+					// Move the portal the distance to the wall
+					FVector NewLocation = GetActorLocation() - GetActorRightVector() * DistanceToWall;
+					UE_LOG(LogTemp, Warning, TEXT("Set New Left Location"));
+					SetActorLocationAndRotation(NewLocation, GetActorRotation());
+				}
+			}
+		}
+	}
+}
+
+bool APortal::CheckPointToMovePortal(UWorld* World, FVector Point)
+{
+	TArray<FOverlapResult> OverlapResults;
+	FCollisionShape CollisionSphere = FCollisionShape::MakeSphere(5.f);
+	FCollisionQueryParams QueryParams;
+	QueryParams.bTraceComplex = true;
+	QueryParams.AddIgnoredActor(this);
+
+	DrawDebugSphere(World, Point, 5.f, 16, FColor::Magenta, false, 2.f, 0, 1.f);
+
+	bool bHasOverlap = World->OverlapMultiByChannel(
+		OverlapResults,
+		Point,
+		FQuat::Identity,
+		ECC_PortalTraceChannel,
+		CollisionSphere,
+		QueryParams
+	);
+
+	if (bHasOverlap)
+	{
+		for (const FOverlapResult& Result : OverlapResults)
+		{
+			if (Result.GetActor() != nullptr && Result.GetActor() != CurrentWall && Result.GetActor())
+			{
+				return true; // There is an overlap with something other than the current wall
+			}
+		}
+		return false;
+	}
+
+	return true;
+
+}
+
+void APortal::SetCurrentWall(AActor* NewWall)
+{
+	CurrentWall = NewWall;
 }
